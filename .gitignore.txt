@@ -1,0 +1,5 @@
+# Abaikan file rahasia Streamlit
+.streamlit/secrets.toml
+
+# Abaikan file kredensial Google asli (untuk jaga-jaga)
+google_credentials.json
