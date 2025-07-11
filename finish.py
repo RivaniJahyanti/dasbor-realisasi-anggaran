@@ -12,12 +12,11 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- FUNGSI MEMUAT & MENGOLAH DATA ---
+# --- FUNGSI MEMUAT & MENGOLAH DATA (DENGAN PERBAIKAN) ---
 @st.cache_data(ttl=300, show_spinner="Memuat data terbaru...")
 def load_and_process_data(sheet_url):
     try:
-        # ✔️ BENAR, GANTI DENGAN BARIS INI
-        # Kode ini secara "ajaib" membaca kredensial dari brankas rahasia Streamlit.
+        # Menggunakan kredensial dari Streamlit Secrets
         gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
         spreadsheet = gc.open_by_url(sheet_url)
     except Exception as e:
@@ -28,7 +27,7 @@ def load_and_process_data(sheet_url):
     all_data_list = []
     monthly_data_list = []
     expected_cols = {
-        'GRAND TOTAL': ['NO', 'Nama KPPN', 'KDAKUN', 'NMAKUN', 'PROGRAM PENGELOLAAN', 'TAHUN', 'PAGU', 'REALISASI JANUARI', 'REALISASI FEBRUARI', 'REALISASI MARET', 'REALISASI APRIL', 'REALISASI MEI', 'REALISASI JUNI', 'REALISASI JULI', 'REALISASI AGUSTUS', 'REALISASI SEPTEMBER', 'REALISASI OKTOBER', 'REALISASI NOVEMBER', 'REALISASI DESEMBER',  'Total', 'PERSENTASE', 'Selisih'],
+        'GRAND TOTAL': ['NO', 'Nama KPPN', 'KDAKUN', 'NMAKUN', 'PROGRAM PENGELOLAAN', 'TAHUN', 'PAGU', 'REALISASI JANUARI', 'REALISASI FEBRUARI', 'REALISASI MARET', 'REALISASI APRIL', 'REALISASI MEI', 'REALISASI JUNI', 'REALISASI JULI', 'REALISASI AGUSTUS', 'REALISASI SEPTEMBER', 'REALISASI OKTOBER', 'REALISASI NOVEMBER', 'REALISASI DESEMBER', 'Total', 'PERSENTASE', 'Selisih'],
         'regional': ['NO', 'NMKABKOTA', 'KDAKUN', 'NMAKUN', 'PROGRAM PENGELOLAAN', 'TAHUN', 'PAGU', 'REALISASI JANUARI', 'REALISASI FEBRUARI', 'REALISASI MARET', 'REALISASI APRIL', 'REALISASI MEI', 'REALISASI JUNI', 'REALISASI JULI', 'REALISASI AGUSTUS', 'REALISASI SEPTEMBER', 'REALISASI OKTOBER', 'REALISASI NOVEMBER', 'REALISASI DESEMBER', 'Total', 'PERSENTASE']
     }
 
@@ -45,12 +44,15 @@ def load_and_process_data(sheet_url):
             df_raw.columns = col_map
             df_raw.rename(columns={'NMAKUN': 'Jenis Belanja'}, inplace=True)
 
-            # Data untuk line chart per bulan
-            if name != 'GRAND TOTAL':
-                monthly_cols = ['PROGRAM PENGELOLAAN', 'TAHUN'] + [col for col in df_raw.columns if 'REALISASI' in col and 'Total' not in col]
+            # --- PERUBAHAN UTAMA DI SINI ---
+            # Kondisi "if name != 'GRAND TOTAL':" dihapus agar semua sheet diproses untuk data bulanan.
+            monthly_cols = ['PROGRAM PENGELOLAAN', 'TAHUN'] + [col for col in df_raw.columns if 'REALISASI' in col and 'Total' not in col]
+            # Memastikan semua kolom yang diperlukan ada sebelum memproses
+            if all(col in df_raw.columns for col in monthly_cols):
                 monthly_df = df_raw[monthly_cols].copy()
                 monthly_df['Wilayah'] = name
                 monthly_data_list.append(monthly_df)
+            # --- AKHIR PERUBAHAN ---
 
             if 'PROGRAM PENGELOLAAN' in df_raw.columns:
                 df_raw['PROGRAM PENGELOLAAN'] = df_raw['PROGRAM PENGELOLAAN'].str.strip().str.upper()
@@ -90,7 +92,7 @@ def load_and_process_data(sheet_url):
 
     return final_data, monthly_data
 
-# --- FUNGSI VISUALISASI ---
+# --- FUNGSI VISUALISASI (Tidak Perlu Diubah) ---
 def show_pie_chart(data):
     st.subheader("🔀 Distribusi Anggaran per Program")
     fig = px.pie(
@@ -135,7 +137,6 @@ def show_sub_detail_pie(data, monthly_data, selected_year, selected_region):
     selected_program = st.selectbox("🔎 Pilih Program Pengelolaan:", options=unique_programs)
 
     if selected_program:
-        # Pie Chart
         sub_df = data[data['PROGRAM PENGELOLAAN'] == selected_program]
         sub_summary = sub_df.groupby('Jenis Belanja')[['Anggaran', 'Realisasi']].sum().reset_index()
         sub_summary['Persentase'] = np.where(sub_summary['Anggaran'] > 0, (sub_summary['Realisasi'] / sub_summary['Anggaran']) * 100, 0)
@@ -162,7 +163,6 @@ def show_sub_detail_pie(data, monthly_data, selected_year, selected_region):
         )
         st.plotly_chart(sub_fig, use_container_width=True)
 
-        # Tabel Data (Corrected Indentation and removed duplicate)
         display_df = sub_summary.copy()
         display_df['Anggaran'] = display_df['Anggaran'].apply(lambda x: f"Rp {x:,.0f}")
         display_df['Realisasi'] = display_df['Realisasi'].apply(lambda x: f"Rp {x:,.0f}")
@@ -183,18 +183,15 @@ def show_sub_detail_pie(data, monthly_data, selected_year, selected_region):
 
 def show_summary_table(data):
     st.subheader("🔢 Tabel Ringkasan Program")
-
     summary_df = data.groupby('PROGRAM PENGELOLAAN').agg({
         'Anggaran': 'sum',
         'Realisasi': 'sum'
     }).reset_index()
-
     summary_df['Persentase'] = np.where(
         summary_df['Anggaran'] > 0,
         (summary_df['Realisasi'] / summary_df['Anggaran']) * 100,
         0
     )
-
     display_df = summary_df.copy()
     display_df['Anggaran'] = display_df['Anggaran'].apply(lambda x: f"Rp {x:,.0f}")
     display_df['Realisasi'] = display_df['Realisasi'].apply(lambda x: f"Rp {x:,.0f}")
@@ -255,17 +252,15 @@ def show_monthly_trend(monthly_data, selected_year, selected_region):
         st.warning("Tidak ada data program untuk ditampilkan.")
         return
 
-    # --- PERUBAHAN: KOSONGKAN PILIHAN DEFAULT ---
     selected_programs = st.multiselect(
         "Pilih Program untuk Ditampilkan:",
         options=bulan_df['PROGRAM PENGELOLAAN'].unique(),
-        default=[] # Diubah menjadi daftar kosong
+        default=[]
     )
-    # --------------------------------------------
 
     if not selected_programs:
-        st.warning("Silakan pilih minimal satu program untuk menampilkan grafik.")
-        return # Tampilkan peringatan jika tidak ada yang dipilih
+        st.info("Silakan pilih minimal satu program untuk menampilkan grafik.")
+        return
 
     filtered_df = bulan_df[bulan_df['PROGRAM PENGELOLAAN'].isin(selected_programs)]
 
@@ -303,7 +298,7 @@ def show_monthly_trend(monthly_data, selected_year, selected_region):
 
     st.plotly_chart(trend_fig, use_container_width=True)
 
-# --- APLIKASI UTAMA ---
+# --- APLIKASI UTAMA (Tidak Perlu Diubah) ---
 def main():
     st.title("💰 Laporan Pagu dan Realisasi Anggaran KPPN Lhokseumawe")
 
@@ -319,8 +314,6 @@ def main():
             .stTabs [aria-selected="true"] { background-color: #FFFFFF; }
         </style>""", unsafe_allow_html=True)
 
-    # You might need to create a 'google_credentials.json' file for gspread to work.
-    # For now, this part will likely cause an error if the file doesn't exist.
     SHEET_URL = "https://docs.google.com/spreadsheets/d/1ayGwiw88EsyAadikJFkdPoDHS5fLbfEcC9YXsgKGm2c/edit?usp=sharing"
     df, monthly_data = load_and_process_data(SHEET_URL)
 
@@ -329,7 +322,9 @@ def main():
         st.stop()
 
     st.sidebar.header("🔍 Filter Data")
-    selected_region = st.sidebar.selectbox("Pilih Wilayah:", options=sorted(df['Wilayah'].unique()))
+    # Pastikan 'GRAND TOTAL' juga ada di pilihan sidebar
+    wilayah_options = sorted(df['Wilayah'].unique())
+    selected_region = st.sidebar.selectbox("Pilih Wilayah:", options=wilayah_options)
     selected_year = st.sidebar.selectbox("Pilih Tahun:", options=sorted(df['TAHUN'].unique(), reverse=True))
 
     filtered_df = df[(df['Wilayah'] == selected_region) & (df['TAHUN'] == selected_year)]
@@ -342,7 +337,7 @@ def main():
     total_realisasi = filtered_df['Realisasi'].sum()
     persen_total = (total_realisasi / total_anggaran * 100) if total_anggaran > 0 else 0
 
-    st.markdown(f"### 📊 RINGKASAN KESELURUHAN {selected_region}")
+    st.markdown(f"### 📊 RINGKASAN KESELURUHAN {selected_region.upper()}")
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Anggaran", f"Rp {total_anggaran:,.0f}")
     col2.metric("Total Realisasi", f"Rp {total_realisasi:,.0f}")
@@ -368,17 +363,14 @@ def main():
     tab1, tab2, tab3 = st.tabs(["📊 Program Pengelolaan", "📂 Rincian Jenis Belanja", "📈 Tren Bulanan"])
 
     with tab1:
-        st.markdown("")
         show_pie_chart(program_summary)
         st.markdown("---")
         show_summary_table(program_summary)
 
     with tab2:
-        st.markdown("")
         show_sub_detail_pie(filtered_df, monthly_data, selected_year, selected_region)
 
     with tab3:
-        st.markdown("")
         show_monthly_trend(monthly_data, selected_year, selected_region)
 
 if __name__ == '__main__':
