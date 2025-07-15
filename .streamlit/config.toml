@@ -1,16 +1,15 @@
-
 [theme]
-# Biru tua sebagai warna utama widget
-primaryColor='#003366'
+# Hijau sebagai warna utama untuk widget interaktif
+primaryColor = '#4CAF50'
 
-# Latar belakang putih bersih
-backgroundColor='#FFFFFF'
+# Latar belakang utama aplikasi (putih)
+backgroundColor = '#FFFFFF'
 
-# Abu-abu sangat terang untuk sidebar dan area sekunder
-secondaryBackgroundColor='#F0F2F6'
+# Latar belakang sidebar dan area sekunder (abu-abu terang)
+secondaryBackgroundColor = '#F0F2F6'
 
-# Teks hitam pekat agar mudah dibaca
-textColor='#0B0B0B'
+# Biru Dongker untuk warna teks utama
+textColor = '#003366'
 
-# Font standar yang rapi
-font='sans serif'
+# Menggunakan font 'serif' yang akan diterapkan sebagai Times New Roman
+font = 'serif'
