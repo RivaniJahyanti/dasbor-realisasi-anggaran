@@ -3,3 +3,17 @@
 
 # Abaikan file kredensial Google asli (untuk jaga-jaga)
 google_credentials.json
+
+# --- TAMBAHKAN INI UNTUK MENGATASI ERROR INOTIFY ---
+
+# Folder virtual environment (INI YANG PALING PENTING)
+venv/
+.venv/
+env/
+
+# Folder cache Python
+__pycache__/
+*.pyc
+
+# Folder umum lainnya yang tidak perlu di-upload
+.vscode/
