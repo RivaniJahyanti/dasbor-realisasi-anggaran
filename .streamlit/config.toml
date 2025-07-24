@@ -1,15 +1,6 @@
 [theme]
-/* Biru tua DJPb sebagai warna utama untuk widget interaktif */
 primaryColor = '#005FAC'
-
-/* Latar belakang utama aplikasi (putih) */
 backgroundColor = '#FFFFFF'
-
-/* Latar belakang sidebar dan area sekunder (abu-abu terang) */
 secondaryBackgroundColor = '#F0F2F6'
-
-/* Biru Tua DJPb untuk warna teks utama */
 textColor = '#005FAC'
-
-# Menggunakan font "Times New Roman", dengan fallback ke font serif lainnya
 font = '"Times New Roman", Times, serif'
