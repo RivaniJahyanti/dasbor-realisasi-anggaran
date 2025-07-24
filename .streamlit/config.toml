@@ -11,5 +11,5 @@ secondaryBackgroundColor = '#F0F2F6'
 /* Biru Tua DJPb untuk warna teks utama */
 textColor = '#005FAC'
 
-# Menggunakan font 'serif' yang akan diterapkan sebagai Times New Roman
-font = 'serif'
+# Menggunakan font "Times New Roman", dengan fallback ke font serif lainnya
+font = '"Times New Roman", Times, serif'
