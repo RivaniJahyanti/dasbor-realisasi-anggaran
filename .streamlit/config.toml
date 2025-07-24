@@ -1,15 +1,15 @@
 [theme]
-# Hijau sebagai warna utama untuk widget interaktif
-primaryColor = '#4CAF50'
+/* Biru tua DJPb sebagai warna utama untuk widget interaktif */
+primaryColor = '#005FAC'
 
-# Latar belakang utama aplikasi (putih)
+/* Latar belakang utama aplikasi (putih) */
 backgroundColor = '#FFFFFF'
 
-# Latar belakang sidebar dan area sekunder (abu-abu terang)
+/* Latar belakang sidebar dan area sekunder (abu-abu terang) */
 secondaryBackgroundColor = '#F0F2F6'
 
-# Biru Dongker untuk warna teks utama
-textColor = '#003366'
+/* Biru Tua DJPb untuk warna teks utama */
+textColor = '#005FAC'
 
 # Menggunakan font 'serif' yang akan diterapkan sebagai Times New Roman
 font = 'serif'
