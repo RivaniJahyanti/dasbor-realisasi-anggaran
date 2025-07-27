@@ -1,6 +1,10 @@
 [theme]
-primaryColor = '#005FAC'
-backgroundColor = '#FFFFFF'
-secondaryBackgroundColor = '#F0F2F6'
-textColor = '#005FAC'
-font = '"Times New Roman", Times, serif'
+# Warna utama Kemenkeu DJPB
+primaryColor = "#005FAC"  # Biru DJPB
+backgroundColor = "#FFFFFF"  # Putih bersih
+secondaryBackgroundColor = "#F0F5F9"  # Abu-abu biru muda
+textColor = "#000000"  # Hitam pekat (untuk kontras maksimal)
+font = "sans serif"  # Font profesional
+
+# Opsional (tambahkan di bawah [theme] jika perlu)
+base = "light"
