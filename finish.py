@@ -99,7 +99,7 @@ def tampilkan_header(lebar_logo_kiri=550, lebar_intress=155, lebar_djpb=60, marg
 def load_and_process_data(sheet_url):
     try:
         # Menggunakan kredensial dari Streamlit Secrets
-        gc = gspread.service_account(filename='google_credentials.json')
+        gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
         spreadsheet = gc.open_by_url(sheet_url)
     except Exception as e:
         st.error(f"Gagal terhubung ke Google Sheet. Error: {e}")
