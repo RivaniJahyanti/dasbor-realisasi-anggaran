@@ -4,20 +4,102 @@ import gspread
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+import base64
+from pathlib import Path
+import os
 
 # --- Konfigurasi Halaman Streamlit ---
 st.set_page_config(
-    page_title="Laporan Pagu dan Realisasi KPPN Lhokseumawe",
+    page_title="Sistem Informasi Realisasi Dana Transfer Daerah",
     page_icon="💸",
     layout="wide"
 )
+
+# --- FUNGSI UNTUK GAMBAR (DEFINISI YANG HILANG) ---
+def img_to_base64(img_path):
+    """Mengubah file gambar menjadi string base64."""
+    path = Path(img_path)
+    if not path.is_file():
+        # Jika file tidak ditemukan, kembalikan None agar tidak error
+        st.error(f"File logo tidak ditemukan di: {img_path}")
+        return None
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+def tampilkan_header(lebar_logo_kiri=550, lebar_intress=155, lebar_djpb=60, margin_atas='4rem', margin_bawah='5rem'):
+    """
+    Menampilkan header dengan:
+    - Semua logo sejajar sempurna di garis bawah yang sama
+    - Logo kanan rata kanan
+    - Presisi tinggi dalam penempatan
+    """
+    # CSS untuk presisi layout
+    st.markdown(
+        f"""
+        <style>
+            /* Reset padding utama */
+            div.block-container {{
+                padding-top: {margin_atas};
+                padding-bottom: {margin_bawah};
+                padding-left: 2rem;
+                padding-right: 2rem;
+            }}
+            
+            /* Flex container untuk header */
+            [data-testid="stHorizontalBlock"] {{
+                align-items: flex-end !important;
+            }}
+            
+            /* Kolom logo kiri */
+            [data-testid="column"]:nth-of-type(1) {{
+                align-self: flex-end !important;
+                padding-bottom: 0 !important;
+            }}
+            
+            /* Reset margin gambar */
+            .stImage img {{
+                margin-bottom: 0 !important;
+                vertical-align: bottom !important;
+            }}
+            
+            /* Container logo kanan */
+            .logo-kanan-container {{
+                display: flex !important;
+                gap: 8px !important;
+                align-items: flex-end !important;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Layout kolom
+    col1, col2, col3 = st.columns([2.5, 5, 2])
+
+    with col1:
+        # Path logo
+        intress_path = "logo/INTRESS.png"
+        djpb_path = "logo/DJPb.png"
+
+        # Encode gambar ke base64
+        intress_b64 = img_to_base64(intress_path)
+        djpb_b64 = img_to_base64(djpb_path)
+
+        # Hanya tampilkan jika gambar berhasil di-load
+        if intress_b64 and djpb_b64:
+            st.markdown(f"""
+            <div style="display: flex; justify-content: flex-start; align-items: center; gap: 8px;">
+                <img src="data:image/png;base64,{intress_b64}" width="{lebar_intress}">
+                <img src="data:image/png;base64,{djpb_b64}" width="{lebar_djpb}">
+            </div>
+            """, unsafe_allow_html=True)
 
 # --- FUNGSI MEMUAT & MENGOLAH DATA (DENGAN PERBAIKAN) ---
 @st.cache_data(ttl=300, show_spinner="Memuat data terbaru...")
 def load_and_process_data(sheet_url):
     try:
         # Menggunakan kredensial dari Streamlit Secrets
-        gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+        gc = gspread.service_account(filename='google_credentials.json')
         spreadsheet = gc.open_by_url(sheet_url)
     except Exception as e:
         st.error(f"Gagal terhubung ke Google Sheet. Error: {e}")
@@ -94,14 +176,29 @@ def load_and_process_data(sheet_url):
 
 # --- FUNGSI VISUALISASI (Tidak Perlu Diubah) ---
 def show_pie_chart(data):
-    st.subheader("🔀 Distribusi Anggaran per Program")
+    st.subheader("⏳ Distribusi Anggaran per Program")
+    # Palet warna DJPB yang diurutkan berdasarkan prioritas (besar ke kecil)
+    djp_colors = [
+        '#005FAC',  # Biru DJPB (utama untuk yang terbesar)
+        '#FFD700',  # Kuning emas (untuk kedua terbesar)
+        '#ced4da',  # Abu-abu (untuk ketiga terbesar)
+        '#8ecae6',  # biru muda
+        '#caf0f8',  # biru pastel
+        '#f8edeb',  # Ungu medium
+        '#ecf39e',  # kuning pastel
+        '#03045e',  # donker
+    ]
+    
+    # Pastikan data diurutkan dari terbesar ke terkecil
+    data_sorted = data.sort_values('Anggaran', ascending=False)
+    
     fig = px.pie(
-        data,
+        data_sorted,  # Gunakan data yang sudah diurutkan
         names='PROGRAM PENGELOLAAN',
         values='Anggaran',
         color='PROGRAM PENGELOLAAN',
         hole=0.4,
-        color_discrete_sequence=px.colors.qualitative.Pastel
+        color_discrete_sequence=djp_colors
     )
     fig.update_traces(
         textposition='inside',
@@ -140,13 +237,28 @@ def show_sub_detail_pie(data, monthly_data, selected_year, selected_region):
         sub_df = data[data['PROGRAM PENGELOLAAN'] == selected_program]
         sub_summary = sub_df.groupby('Jenis Belanja')[['Anggaran', 'Realisasi']].sum().reset_index()
         sub_summary['Persentase'] = np.where(sub_summary['Anggaran'] > 0, (sub_summary['Realisasi'] / sub_summary['Anggaran']) * 100, 0)
-
+        
+        # Urutkan dari terbesar ke terkecil
+        sub_summary = sub_summary.sort_values('Anggaran', ascending=False)
+        
+        # Palet warna untuk sub-detail (diurutkan sesuai prioritas DJPB)
+        sub_colors = [        
+            '#005FAC',  # Biru DJPB (utama untuk yang terbesar)
+            '#FFD700',  # Kuning emas (untuk kedua terbesar)
+            '#ced4da',  # Abu-abu (untuk ketiga terbesar)
+            '#8ecae6',  # biru muda
+            '#caf0f8',  # biru pastel
+            '#f8edeb',  # abu muda
+            '#ecf39e',  # kuning pastel
+            '#03045e',  # donker
+        ]
+        
         sub_fig = px.pie(
             sub_summary,
             names='Jenis Belanja',
             values='Anggaran',
             color='Jenis Belanja',
-            color_discrete_sequence=px.colors.qualitative.Set2,
+            color_discrete_sequence=sub_colors,
             hole=0.4,
             height=500
         )
@@ -298,21 +410,56 @@ def show_monthly_trend(monthly_data, selected_year, selected_region):
 
     st.plotly_chart(trend_fig, use_container_width=True)
 
-# --- APLIKASI UTAMA (Tidak Perlu Diubah) ---
+# --- APLIKASI UTAMA (DENGAN SIDEBAR BARU) ---
 def main():
-    st.title("💰 Laporan Pagu dan Realisasi Anggaran KPPN Lhokseumawe")
+    tampilkan_header()
+    # --- JUDUL UTAMA DENGAN ANIMASI ---
+    st.markdown("""
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .title-box {
+            background: linear-gradient(135deg, #005FAC, #005FAC);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: fadeIn 1s ease-out;
+        }
+        .title-box h1 {
+            margin-bottom: 0.5rem;
+            font-size: 2.2rem;
+        }
+        .title-box h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            opacity: 0.9;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
     st.markdown("""
-        <style>
-            .stTabs [data-baseweb="tab-list"] { display: flex; width: 100%; gap: 2px; }
-            .stTabs [data-baseweb="tab"] {
-                flex-grow: 1; text-align: center; height: 50px;
-                white-space: pre-wrap; background-color: #F0F2F6;
-                border-radius: 4px 4px 0px 0px; padding: 10px;
-                font-size: 16px; font-weight: 600;
-            }
-            .stTabs [aria-selected="true"] { background-color: #FFFFFF; }
+    <div class="title-box">
+        <h1>Sistem Informasi Realisasi Transfer ke Daerah</h1>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <style>
+    .stTabs [data-baseweb="tab-list"] { display: flex; width: 100%; gap: 2px; }
+    .stTabs [data-baseweb="tab"] {
+      flex-grow: 1; text-align: center; height: 50px;
+      white-space: pre-wrap; background-color: #F0F2F6;
+      border-radius: 4px 4px 0px 0px; padding: 10px;
+      font-size: 16px; font-weight: 600;
+      }
+      .stTabs [aria-selected="true"] { background-color: #FFFFFF; }
         </style>""", unsafe_allow_html=True)
+
 
     SHEET_URL = "https://docs.google.com/spreadsheets/d/1ayGwiw88EsyAadikJFkdPoDHS5fLbfEcC9YXsgKGm2c/edit?usp=sharing"
     df, monthly_data = load_and_process_data(SHEET_URL)
@@ -321,13 +468,37 @@ def main():
         st.warning("Gagal memuat data. Periksa kembali URL Google Sheet atau koneksi Anda.")
         st.stop()
 
-    st.sidebar.header("🔍 Filter Data")
-    # Pastikan 'GRAND TOTAL' juga ada di pilihan sidebar
-    wilayah_options = sorted(df['Wilayah'].unique())
-    selected_region = st.sidebar.selectbox("Pilih Wilayah:", options=wilayah_options)
-    selected_year = st.sidebar.selectbox("Pilih Tahun:", options=sorted(df['TAHUN'].unique(), reverse=True))
+    # --- PERUBAHAN UTAMA PADA SIDEBAR ---
+    with st.sidebar:
+        st.header("🏛️ KPPN Lhokseumawe")
+        # Mapping untuk label wilayah yang akan ditampilkan
+        wilayah_mapping = {
+            'GRAND TOTAL': 'Beranda',
+            'LHOKSEUMAWE': 'Kota Lhokseumawe',
+            'KAB ACEH UTARA': 'Kab. Aceh Utara',
+            'KAB BIREUN': 'Kab. Bireun'
+        }
 
-    filtered_df = df[(df['Wilayah'] == selected_region) & (df['TAHUN'] == selected_year)]
+        # 1. Navigasi Wilayah (bukan dropdown)
+        wilayah_options = sorted(df['Wilayah'].unique())
+        selected_region_key = st.radio(
+            "Navigasi Utama",  # Label ini akan disembunyikan
+            options=wilayah_options,
+            format_func=lambda x: wilayah_mapping.get(x, x),
+            label_visibility="collapsed" # Menyembunyikan label "Navigasi Utama"
+        )
+
+        st.divider() # Garis pemisah visual
+
+        # 2. Filter Tahun (dropdown)
+        selected_year = st.selectbox(
+            "Pilih Tahun:",
+            options=sorted(df['TAHUN'].unique(), reverse=True)
+        )
+    # --- AKHIR PERUBAHAN SIDEBAR ---
+    selected_region_label = wilayah_mapping.get(selected_region_key, selected_region_key)
+
+    filtered_df = df[(df['Wilayah'] == selected_region_key) & (df['TAHUN'] == selected_year)]
 
     if filtered_df.empty:
         st.info("Tidak ada data yang tersedia untuk filter yang Anda pilih.")
@@ -337,7 +508,14 @@ def main():
     total_realisasi = filtered_df['Realisasi'].sum()
     persen_total = (total_realisasi / total_anggaran * 100) if total_anggaran > 0 else 0
 
-    st.markdown(f"### 📊 RINGKASAN KESELURUHAN {selected_region.upper()}")
+    if selected_region_key == 'GRAND TOTAL':
+      display_title_region = 'Grand Total'
+    else:
+      display_title_region = selected_region_label
+
+    # Gunakan label yang sesuai untuk judul
+    st.markdown(f"### ☕ Monitoring Penyaluran Dana Transfer Daerah {display_title_region}")
+
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Anggaran", f"Rp {total_anggaran:,.0f}")
     col2.metric("Total Realisasi", f"Rp {total_realisasi:,.0f}")
@@ -360,7 +538,7 @@ def main():
         st.warning("Tidak ada data program untuk ditampilkan pada filter yang dipilih.")
         st.stop()
 
-    tab1, tab2, tab3 = st.tabs(["📊 Program Pengelolaan", "📂 Rincian Jenis Belanja", "📈 Tren Bulanan"])
+    tab1, tab2, tab3 = st.tabs(["💡 Program TKD", "👍 Jenis Belanja", "🏃‍♀️ Tren Bulanan"])
 
     with tab1:
         show_pie_chart(program_summary)
@@ -368,10 +546,10 @@ def main():
         show_summary_table(program_summary)
 
     with tab2:
-        show_sub_detail_pie(filtered_df, monthly_data, selected_year, selected_region)
+        show_sub_detail_pie(filtered_df, monthly_data, selected_year, selected_region_key)
 
     with tab3:
-        show_monthly_trend(monthly_data, selected_year, selected_region)
+        show_monthly_trend(monthly_data, selected_year, selected_region_key)
 
 if __name__ == '__main__':
     main()
