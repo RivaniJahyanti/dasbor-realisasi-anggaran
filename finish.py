@@ -444,7 +444,7 @@ def main():
 
     st.markdown("""
     <div class="title-box">
-        <h1>Sistem Informasi Realisasi Transfer ke Daerah</h1>
+        <h1>Sistem Informasi Realisasi Dana Transfer ke Daerah</h1>
     </div>
     """, unsafe_allow_html=True)
 
